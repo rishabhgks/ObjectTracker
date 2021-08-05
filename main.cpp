@@ -16,7 +16,7 @@ const char* source_window = "Tracking";
 int dil_iter = 6;
 int ero_iter = 6;
 RNG rng(12345);
-int min_width_check = 100;
+int min_width_check = 70;
 int max_width_check = 300;
 int aspect_ratio = 3.5;
 Ptr<Tracker> tracker;
@@ -88,18 +88,24 @@ int main(int argc, char **argv)
     clock_t start;
 
     while(video.read(frame)) {
-// NOte the start time
+// Note the start time
         start = std::clock();
+// Write every 100th frame
+        if(counter % 100 == 0)
+            imwrite("/home/rishabh/genesys_ws/ObjectTracker/original_uav/drone" + to_string(counter) + ".jpg", frame);
+
 // Resize the frame to reduce computation time and just enough to not harm the pixel features
         resize(frame, frame, Size(frame.size[1]*3/4, frame.size[0]*3/4), cv::INTER_AREA);
 // Call the Contour function to detect the UAV in current frame
         thresh_callback(0, 0);
 // Call the Object tracker function that uses CSRT tracker to detect the UAV in current frame
         object_tracker_callback(0, 0);
-        cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << endl;
+//        cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << endl;
 // View the current frame with the detected bounding boxes of the UAV
         imshow(source_window, frame);
-//        imwrite("drone" + to_string(counter) + ".jpg", frame);
+// Write every 100th tracked frame
+        if(counter % 100 == 0)
+            imwrite("/home/rishabh/genesys_ws/ObjectTracker/tracked_uav/drone" + to_string(counter) + ".jpg", frame);
 
 
         counter++;
@@ -132,7 +138,7 @@ int main(int argc, char **argv)
 void thresh_callback(int, void* )
 {
     Mat hsv_img, gray;
-    int counter = 0;
+    int contourCount = 0;
 // Convert the image to Grayscale
     cvtColor(frame, gray, COLOR_BGR2GRAY);
 // Perform Blurring on the current frame using a small kernel to average out pixel values
@@ -151,6 +157,7 @@ void thresh_callback(int, void* )
 // Find all the contours in the current frame
     findContours( gray, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE );
     vector<vector<Point> >hull( contours.size() );
+//    cout << contours.size() << endl;
     for( size_t i = 0; i < contours.size(); i++ )
     {
 // Calculate the Convex Hull for all the contours detected and store them
@@ -166,33 +173,34 @@ void thresh_callback(int, void* )
 // If the bounding box matches the aspect ratio criteria and the hull matches the number of sides criteria and the contour area is within an acceptable range
 // Then we can confirm that we have found the UAV in the frame
         if ((bbox_con.width / bbox_con.height) < 2.5 || (bbox_con.width / bbox_con.height) > aspect_ratio ||
-            bbox_con.width < min_width_check || bbox_con.width > max_width_check || hull[i].size() < 8 ||
+            bbox_con.width < min_width_check || bbox_con.width > max_width_check || hull[i].size() < 9 ||
             contourArea(contours[i])/(bbox_con.width*bbox_con.height) < 0.4)
             continue;
         Scalar color = Scalar( rng.uniform(0, 256), rng.uniform(0,256), rng.uniform(0,256) );
 // Draw a rectangle around the detected UAV in the frame
-        rectangle(frame, bbox_con, Scalar( 255, 0, 0 ), 1, 1 );
-        putText(frame, "Area : " + SSTR(contourArea(contours[i])), Point(bbox_con.x,bbox_con.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 1);
-        putText(frame, "Area : " + SSTR(bbox_con.width*bbox_con.height), Point(bbox_con.x - bbox_con.width,bbox_con.y + bbox_con.height), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 1);
+        rectangle(frame, bbox_con, Scalar( 0, 255, 0 ), 1, 1 );
+//        putText(frame, "BBW : " + SSTR(bbox_con.width), Point(bbox_con.x,bbox_con.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 1);
+//        putText(frame, "Area : " + SSTR(bbox_con.width*bbox_con.height), Point(bbox_con.x - bbox_con.width,bbox_con.y + bbox_con.height), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 1);
 // Load the detected UAV bounding box in a variable
         bbox_obj = bbox_con;
-        counter++;
+//        cout << contourCount << endl;
+        contourCount++;
     }
 
 // If the CSRT Object tracker has not been initialized and a UAV has been detected then Initialize the tracker
-    if(counter == 1 && !initializeTracker)
+    if(contourCount == 1 && !initializeTracker)
     {
         tracker->init(frame, bbox_obj);
         initializeTracker = true;
     }
 // If the tracker is initialized then update that Contouring has successfully detected a UAV
-    else if (counter == 1 && initializeTracker) {
+    else if (contourCount == 1 && initializeTracker) {
         detectedContour = true;
     } else
         detectedContour = false;
 
 // Enable drawing the bounding box if this is the first detection after a few frames of no detection
-    if(counter == 0)
+    if(contourCount == 0)
         drawTracker = true;
     else
         drawTracker = false;

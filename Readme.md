@@ -3,6 +3,12 @@
 
 This utility is a C++ code which can take a recorded video file of a Drone flying around in an outdoor environment, and return the same feed with a bounding box drawn around the drone showing at all times where it is in every frame.
 
+# Legend
+
+1. Original_uav: This directory contains the raw images from the video feed sampled at every 100 frames.
+2. Tracked_uav: This directory contains the images from the video feed with the UAV tracked inside a bounding box.
+3. Scripts: In this folder are a few python scripts that were used to perform similar tracking operations on the gazebo sensor data.
+
 ## How it works
 
 There are two methods here which are designed to work hand in hand with each other.
